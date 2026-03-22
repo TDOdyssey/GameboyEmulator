@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -I./src -I./ext/include
+CFLAGS = -Wall
 SRC = $(wildcard src/*.c)
 OBJ = $(SRC:src/%.c=build/%.o)
 
@@ -12,6 +12,3 @@ $(TARGET): $(OBJ)
 
 build/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
-
-clean:
-	del /Q build\*.o build\*.exe

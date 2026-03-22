@@ -1,0 +1,130 @@
+X(0x00, 1, "NOP",
+    /* TODO */
+)
+X(0x10, 1, "STOP",
+    /* TODO */
+)
+
+// 8-bit load instructions
+X(0x02, 2, "LD (BC), A",    LD_R_R(&gb->cpu.memory[gb->cpu.BC], &gb->cpu.A); )
+X(0x12, 2, "LD (DE), A",    LD_R_R(&gb->cpu.memory[gb->cpu.DE], &gb->cpu.A); )
+X(0x22, 2, "LD (HL+), A",   LD_R_R(&gb->cpu.memory[gb->cpu.HL++], &gb->cpu.A); )
+X(0x32, 2, "LD (HL-), A",   LD_R_R(&gb->cpu.memory[gb->cpu.HL--], &gb->cpu.A); )
+
+X(0x06, 2, "LD B, n",       LD_R_R(&gb->cpu.B, &gb->cpu.memory[++gb->cpu.PC]); )
+X(0x16, 2, "LD D, n",       LD_R_R(&gb->cpu.D, &gb->cpu.memory[++gb->cpu.PC]); )
+X(0x26, 2, "LD H, n",       LD_R_R(&gb->cpu.H, &gb->cpu.memory[++gb->cpu.PC]); )
+X(0x36, 3, "LD (HL), n",    LD_R_R(&gb->cpu.memory[gb->cpu.HL], &gb->cpu.memory[++gb->cpu.PC]); )
+
+X(0x0a, 2, "LD A, (BC)",    LD_R_R(&gb->cpu.A, &gb->cpu.memory[gb->cpu.BC]); )
+X(0x1a, 2, "LD A, (DE)",    LD_R_R(&gb->cpu.A, &gb->cpu.memory[gb->cpu.DE]); )
+X(0x2a, 2, "LD A, (HL+)",   LD_R_R(&gb->cpu.A, &gb->cpu.memory[gb->cpu.HL++]); )
+X(0x3a, 2, "LD A, (HL-)",   LD_R_R(&gb->cpu.A, &gb->cpu.memory[gb->cpu.HL--]); )
+
+X(0x0e, 2, "LD C, n", LD_R_R(&gb->cpu.C, &gb->cpu.memory[++gb->cpu.PC]); )
+X(0x1e, 2, "LD E, n", LD_R_R(&gb->cpu.E, &gb->cpu.memory[++gb->cpu.PC]); )
+X(0x2e, 2, "LD L, n", LD_R_R(&gb->cpu.L, &gb->cpu.memory[++gb->cpu.PC]); )
+X(0x3e, 2, "LD A, n", LD_R_R(&gb->cpu.A, &gb->cpu.memory[++gb->cpu.PC]); )
+
+X(0x40, 1, "LD B, B",       LD_R_R(&gb->cpu.B, &gb->cpu.B); )
+X(0x41, 1, "LD B, C",       LD_R_R(&gb->cpu.B, &gb->cpu.C); )
+X(0x42, 1, "LD B, D",       LD_R_R(&gb->cpu.B, &gb->cpu.D); )
+X(0x43, 1, "LD B, E",       LD_R_R(&gb->cpu.B, &gb->cpu.E); )
+X(0x44, 1, "LD B, H",       LD_R_R(&gb->cpu.B, &gb->cpu.H); )
+X(0x45, 1, "LD B, L",       LD_R_R(&gb->cpu.B, &gb->cpu.L); )
+X(0x46, 2, "LD B, (HL)",    LD_R_R(&gb->cpu.B, &gb->cpu.memory[gb->cpu.HL]); )
+X(0x47, 1, "LD B, A",       LD_R_R(&gb->cpu.B, &gb->cpu.A); )
+X(0x48, 1, "LD C, B",       LD_R_R(&gb->cpu.C, &gb->cpu.B); )
+X(0x49, 1, "LD C, C",       LD_R_R(&gb->cpu.C, &gb->cpu.C); )
+X(0x4A, 1, "LD C, D",       LD_R_R(&gb->cpu.C, &gb->cpu.D); )
+X(0x4B, 1, "LD C, E",       LD_R_R(&gb->cpu.C, &gb->cpu.E); )
+X(0x4C, 1, "LD C, H",       LD_R_R(&gb->cpu.C, &gb->cpu.H); )
+X(0x4D, 1, "LD C, L",       LD_R_R(&gb->cpu.C, &gb->cpu.L); )
+X(0x4E, 2, "LD C, (HL)",    LD_R_R(&gb->cpu.C, &gb->cpu.memory[gb->cpu.HL]); )
+X(0x4F, 1, "LD C, A",       LD_R_R(&gb->cpu.C, &gb->cpu.A); )
+
+X(0x50, 1, "LD D, B",       LD_R_R(&gb->cpu.D, &gb->cpu.B); )
+X(0x51, 1, "LD D, C",       LD_R_R(&gb->cpu.D, &gb->cpu.C); )
+X(0x52, 1, "LD D, D",       LD_R_R(&gb->cpu.D, &gb->cpu.D); )
+X(0x53, 1, "LD D, E",       LD_R_R(&gb->cpu.D, &gb->cpu.E); )
+X(0x54, 1, "LD D, H",       LD_R_R(&gb->cpu.D, &gb->cpu.H); )
+X(0x55, 1, "LD D, L",       LD_R_R(&gb->cpu.D, &gb->cpu.L); )
+X(0x56, 2, "LD D, (HL)",    LD_R_R(&gb->cpu.D, &gb->cpu.memory[gb->cpu.HL]); )
+X(0x57, 1, "LD D, A", LD_R_R(&gb->cpu.D, &gb->cpu.A); )
+X(0x58, 1, "LD E, B", LD_R_R(&gb->cpu.E, &gb->cpu.B); )
+X(0x59, 1, "LD E, C", LD_R_R(&gb->cpu.E, &gb->cpu.C); )
+X(0x5A, 1, "LD E, D", LD_R_R(&gb->cpu.E, &gb->cpu.D); )
+X(0x5B, 1, "LD E, E", LD_R_R(&gb->cpu.E, &gb->cpu.E); )
+X(0x5C, 1, "LD E, H", LD_R_R(&gb->cpu.E, &gb->cpu.H); )
+X(0x5D, 1, "LD E, L", LD_R_R(&gb->cpu.E, &gb->cpu.L); )
+X(0x5E, 2, "LD E, (HL)", LD_R_R(&gb->cpu.E, &gb->cpu.memory[gb->cpu.HL]); )
+X(0x5F, 1, "LD E, A", LD_R_R(&gb->cpu.E, &gb->cpu.A); )
+
+X(0x60, 1, "LD H, B", LD_R_R(&gb->cpu.H, &gb->cpu.B); )
+X(0x61, 1, "LD H, C", LD_R_R(&gb->cpu.H, &gb->cpu.C); )
+X(0x62, 1, "LD H, D", LD_R_R(&gb->cpu.H, &gb->cpu.D); )
+X(0x63, 1, "LD H, E", LD_R_R(&gb->cpu.H, &gb->cpu.E); )
+X(0x64, 1, "LD H, H", LD_R_R(&gb->cpu.H, &gb->cpu.H); )
+X(0x65, 1, "LD H, L", LD_R_R(&gb->cpu.H, &gb->cpu.L); )
+X(0x66, 2, "LD H, (HL)", LD_R_R(&gb->cpu.H, &gb->cpu.memory[gb->cpu.HL]); )
+X(0x67, 1, "LD H, A", LD_R_R(&gb->cpu.H, &gb->cpu.A); )
+X(0x68, 1, "LD L, B", LD_R_R(&gb->cpu.L, &gb->cpu.B); )
+X(0x69, 1, "LD L, C", LD_R_R(&gb->cpu.L, &gb->cpu.C); )
+X(0x6A, 1, "LD L, D", LD_R_R(&gb->cpu.L, &gb->cpu.D); )
+X(0x6B, 1, "LD L, E", LD_R_R(&gb->cpu.L, &gb->cpu.E); )
+X(0x6C, 1, "LD L, H", LD_R_R(&gb->cpu.L, &gb->cpu.H); )
+X(0x6D, 1, "LD L, L", LD_R_R(&gb->cpu.L, &gb->cpu.L); )
+X(0x6E, 2, "LD L, (HL)", LD_R_R(&gb->cpu.L, &gb->cpu.memory[gb->cpu.HL]); )
+X(0x6F, 1, "LD L, A", LD_R_R(&gb->cpu.L, &gb->cpu.A); )
+
+X(0x70, 2, "LD (HL), B", LD_R_R(&gb->cpu.memory[gb->cpu.HL], &gb->cpu.B); )
+X(0x71, 2, "LD (HL), C", LD_R_R(&gb->cpu.memory[gb->cpu.HL], &gb->cpu.C); )
+X(0x72, 2, "LD (HL), D", LD_R_R(&gb->cpu.memory[gb->cpu.HL], &gb->cpu.D); )
+X(0x73, 2, "LD (HL), E", LD_R_R(&gb->cpu.memory[gb->cpu.HL], &gb->cpu.E); )
+X(0x74, 2, "LD (HL), H", LD_R_R(&gb->cpu.memory[gb->cpu.HL], &gb->cpu.H); )
+X(0x75, 2, "LD (HL), L", LD_R_R(&gb->cpu.memory[gb->cpu.HL], &gb->cpu.L); )
+X(0x76, 1, "HALT", /* TODO */ )
+X(0x77, 2, "LD (HL), A", LD_R_R(&gb->cpu.memory[gb->cpu.HL], &gb->cpu.A); )
+X(0x78, 1, "LD A, B", LD_R_R(&gb->cpu.A, &gb->cpu.B); )
+X(0x79, 1, "LD A, C", LD_R_R(&gb->cpu.A, &gb->cpu.C); )
+X(0x7A, 1, "LD A, D", LD_R_R(&gb->cpu.A, &gb->cpu.D); )
+X(0x7B, 1, "LD A, E", LD_R_R(&gb->cpu.A, &gb->cpu.E); )
+X(0x7C, 1, "LD A, H", LD_R_R(&gb->cpu.A, &gb->cpu.H); )
+X(0x7D, 1, "LD A, L", LD_R_R(&gb->cpu.A, &gb->cpu.L); )
+X(0x7E, 2, "LD A, (HL)", LD_R_R(&gb->cpu.A, &gb->cpu.memory[gb->cpu.HL]); )
+X(0x7F, 1, "LD A, A", LD_R_R(&gb->cpu.A, &gb->cpu.A); )
+
+X(0xe0, 3, "LDH (n), A", LD_R_R(&gb->cpu.memory[0xFF00 | (gb->cpu.memory[(++gb->cpu.PC)])], &gb->cpu.A); )
+X(0xf0, 3, "LDH A, (n)", LD_R_R(&gb->cpu.A, &gb->cpu.memory[0xFF00 | gb->cpu.memory[(++gb->cpu.PC)]]); )
+
+X(0xe2, 2, "LDH (C), A", LD_R_R(&gb->cpu.memory[0xFF00 | gb->cpu.C], &gb->cpu.A); )
+X(0xf2, 2, "LDH A, (C)", LD_R_R(&gb->cpu.A, &gb->cpu.memory[0xFF00 | gb->cpu.C]); )
+
+X(0xea, 4, "LD (nn), A", LD_R_R(&gb->cpu.memory[nn(gb)], &gb->cpu.A); )
+X(0xfa, 4, "LD A, (nn)", LD_R_R(&gb->cpu.A, &gb->cpu.memory[nn(gb)]); )
+
+// 16 bit loads
+X(0x01, 3, "LD BC, nn", gb->cpu.BC = nn(gb); )
+X(0x11, 3, "LD DE, nn", gb->cpu.DE = nn(gb); )
+X(0x21, 3, "LD HL, nn", gb->cpu.HL = nn(gb); )
+X(0x31, 3, "LD SP, nn", gb->cpu.SP = nn(gb); )
+
+X(0xc1, 3, "POP BC", gb->cpu.BC = pop(gb); )
+X(0xd1, 3, "POP DE", gb->cpu.DE = pop(gb); )
+X(0xe1, 3, "POP HL", gb->cpu.HL = pop(gb); )
+X(0xf1, 3, "POP AF", gb->cpu.AF = pop(gb); )
+
+X(0xc5, 4, "PUSH BC", push(gb, gb->cpu.BC); )
+X(0xd5, 4, "PUSH DE", push(gb, gb->cpu.DE); )
+X(0xe5, 4, "PUSH HL", push(gb, gb->cpu.HL); )
+X(0xf5, 4, "PUSH AF", push(gb, gb->cpu.AF); )
+
+X(0x08, 5, "LD (nn), SP",
+    uint8_t sp_low = gb->cpu.SP & 0xFF;
+    uint8_t sp_high = gb->cpu.SP >> 8;
+
+    gb->cpu.memory[nn(gb)] = sp_low;
+    gb->cpu.memory[nn(gb)+1] = sp_high;
+)
+X(0xf8, 3, "LD HL, SP+e", /* TODO */ )
+X(0xf9, 2, "LD SP, HL", /* TODO */ )
