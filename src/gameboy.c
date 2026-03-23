@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 typedef struct {
     // ------ CPU ------
@@ -208,6 +209,48 @@ void push(GameBoy *gb, uint16_t val)
     gb->cpu.memory[--gb->cpu.SP] = low;
 }
 
+void set_flag(GameBoy *gb, enum GBCPU_flags flag, bool value)
+{
+    if(value)
+        gb->cpu.F |= flag;
+    else
+        gb->cpu.F &= ~flag;
+}
+
+int get_flag(GameBoy *gb, enum GBCPU_flags flag)
+{
+    return (gb->cpu.F & flag) ? 1 : 0;
+}
+
+// Val will typically be a 8-bit value, but we use 16bits too acount for add carry operations
+void ADD_R(GameBoy *gb, uint16_t val)
+{
+    uint16_t result = (uint16_t)(gb->cpu.A) + (uint16_t)(val);
+
+    bool half_carry = (gb->cpu.A & 0xF) + (val & 0xF) > 0xF;
+
+    set_flag(gb, z, result == 0);
+    set_flag(gb, n, false);
+    set_flag(gb, h, half_carry);
+    set_flag(gb, c, result > 0xFF);
+
+    gb->cpu.A = result & 0xFF;
+}
+
+void SUB_R(GameBoy *gb, uint8_t val)
+{
+    uint8_t result = gb->cpu.A - val;
+
+    bool half_carry = (gb->cpu.A & 0x0F) < (val & 0x0F);
+
+    set_flag(gb, z, result == 0);
+    set_flag(gb, n, true);
+    set_flag(gb, h, half_carry);
+    set_flag(gb, c, gb->cpu.A < val);
+
+    gb->cpu.A = result;
+}
+
 #define X(code, cyc, text, impl) static void OP_##code(GameBoy *gb);
 #include "opcodes.def"
 #undef X
@@ -232,6 +275,7 @@ void print_cpu_state(GameBoy *gb)
     printf("Current instruction: %s\n", opcode_table[gb->cpu.memory[gb->cpu.PC]].text);
     printf("Registers:\n");
     printf("A: 0x%02x\n", gb->cpu.A);
+    printf("F: 0x%02x | Z=%d N=%d H=%d C=%d\n", gb->cpu.F, get_flag(gb, z), get_flag(gb, n), get_flag(gb, h), get_flag(gb, c));
     printf("B: 0x%02x\n", gb->cpu.B);
     printf("C: 0x%02x\n", gb->cpu.C);
     printf("D: 0x%02x\n", gb->cpu.D);
@@ -247,6 +291,7 @@ int main()
 {
     GameBoy gb = {0};
 
+    /* 
     gb.cpu.memory[0x100] = 0xfa; // 
     gb.cpu.memory[0x101] = 0x34;
     gb.cpu.memory[0x102] = 0x12;
@@ -256,7 +301,21 @@ int main()
     gb.cpu.memory[0x105] = 0x99;
     gb.cpu.memory[0x106] = 0xea;
     gb.cpu.memory[0x107] = 0x78;
-    gb.cpu.memory[0x108] = 0x56;
+    gb.cpu.memory[0x108] = 0x56;*/
+ 
+    gb.cpu.memory[0x100] = 0x3E; // LD A, 0x05
+    gb.cpu.memory[0x101] = 0x05;
+
+    gb.cpu.memory[0x102] = 0xD6; // SUB 0x03
+    gb.cpu.memory[0x103] = 0x03;
+        
+    gb.cpu.memory[0x104] = 0xD6; // SUB 0x05 (should trigger borrow)
+    gb.cpu.memory[0x105] = 0x05;
+        
+    gb.cpu.memory[0x106] = 0xD6; // SUB 0xFD (wrap test)
+    gb.cpu.memory[0x107] = 0xFD;
+        
+    gb.cpu.memory[0x108] = 0x00; // NOP (end marker)
 
     gb.cpu.PC = 0x100;
 
@@ -273,7 +332,7 @@ int main()
         gb.cpu.PC++;
     }
     
-    printf("memory[0x5678] = %x\n", gb.cpu.memory[0x5678]);
+    //printf("memory[0x5678] = %x\n", gb.cpu.memory[0x5678]);
 
     return 0;
 }

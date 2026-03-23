@@ -128,3 +128,51 @@ X(0x08, 5, "LD (nn), SP",
 )
 X(0xf8, 3, "LD HL, SP+e", /* TODO */ )
 X(0xf9, 2, "LD SP, HL", /* TODO */ )
+
+// 8-bit arithmetic/logical
+
+// ADD
+X(0x80, 1, "ADD B", ADD_R(gb, gb->cpu.B); )
+X(0x81, 1, "ADD C", ADD_R(gb, gb->cpu.C); )
+X(0x82, 1, "ADD D", ADD_R(gb, gb->cpu.D); )
+X(0x83, 1, "ADD E", ADD_R(gb, gb->cpu.E); )
+X(0x84, 1, "ADD H", ADD_R(gb, gb->cpu.H); )
+X(0x85, 1, "ADD L", ADD_R(gb, gb->cpu.L); )
+X(0x86, 2, "ADD (HL)", ADD_R(gb, gb->cpu.memory[gb->cpu.HL]); )
+X(0x87, 1, "ADD A", ADD_R(gb, gb->cpu.A); )
+
+X(0xc6, 2, "ADD n", ADD_R(gb, gb->cpu.memory[++gb->cpu.PC]); )
+
+// ADC
+X(0x88, 1, "ADC B", ADD_R(gb, gb->cpu.B + get_flag(gb, c)); )
+X(0x89, 1, "ADC C", ADD_R(gb, gb->cpu.C + get_flag(gb, c)); )
+X(0x8a, 1, "ADC D", ADD_R(gb, gb->cpu.D + get_flag(gb, c)); )
+X(0x8b, 1, "ADC E", ADD_R(gb, gb->cpu.E + get_flag(gb, c)); )
+X(0x8c, 1, "ADC H", ADD_R(gb, gb->cpu.H + get_flag(gb, c)); )
+X(0x8d, 1, "ADC L", ADD_R(gb, gb->cpu.L + get_flag(gb, c)); )
+X(0x8e, 2, "ADD (HL)", ADD_R(gb, gb->cpu.memory[gb->cpu.HL] + get_flag(gb, c)); )
+X(0x8f, 1, "ADC A", ADD_R(gb, gb->cpu.A + get_flag(gb, c)); )
+
+X(0xce, 2, "ADC n", ADD_R(gb, gb->cpu.memory[++gb->cpu.PC] + get_flag(gb, c)); )
+
+// SUB
+X(0x90, 1, "SUB B", SUB_R(gb, gb->cpu.B); )
+X(0x91, 1, "SUB C", SUB_R(gb, gb->cpu.C); )
+X(0x92, 1, "SUB D", SUB_R(gb, gb->cpu.D); )
+X(0x93, 1, "SUB E", SUB_R(gb, gb->cpu.E); )
+X(0x94, 1, "SUB H", SUB_R(gb, gb->cpu.H); )
+X(0x95, 1, "SUB L", SUB_R(gb, gb->cpu.L); )
+X(0x96, 2, "SUB (HL)", SUB_R(gb, gb->cpu.memory[gb->cpu.HL]); )
+X(0x97, 1, "SUB A", SUB_R(gb, gb->cpu.A); )
+
+X(0xd6, 2, "SUB n", SUB_R(gb, gb->cpu.memory[++gb->cpu.PC]); )
+
+// SBC
+
+// AND
+
+// XOR
+
+// OR
+
+// CP
