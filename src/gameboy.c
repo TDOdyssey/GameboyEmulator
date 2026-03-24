@@ -222,22 +222,49 @@ int get_flag(GameBoy *gb, enum GBCPU_flags flag)
     return (gb->cpu.F & flag) ? 1 : 0;
 }
 
-// Val will typically be a 8-bit value, but we use 16bits too acount for add carry operations
-void ADD_R(GameBoy *gb, uint16_t val)
+void ADD_R(GameBoy *gb, uint8_t val, bool use_carry)
 {
-    uint16_t result = (uint16_t)(gb->cpu.A) + (uint16_t)(val);
+    uint8_t carry = use_carry ? get_flag(gb, c) : 0;
+    uint16_t result = (uint16_t)(gb->cpu.A) + (uint16_t)(val) + carry;
 
-    bool half_carry = (gb->cpu.A & 0xF) + (val & 0xF) > 0xF;
+    bool half_carry = (gb->cpu.A & 0xF) + (val & 0xF) + carry > 0xF;
 
-    set_flag(gb, z, result == 0);
+    gb->cpu.A = result & 0xFF;
+
+    set_flag(gb, z, gb->cpu.A == 0);
     set_flag(gb, n, false);
     set_flag(gb, h, half_carry);
     set_flag(gb, c, result > 0xFF);
 
-    gb->cpu.A = result & 0xFF;
 }
 
-void SUB_R(GameBoy *gb, uint8_t val)
+void ADD_HL(GameBoy *gb, uint16_t val)
+{
+    uint32_t result = gb->cpu.HL + val;
+    
+    set_flag(gb, n, 0);
+    set_flag(gb, h, (gb->cpu.HL & 0xFFF) + (val & 0xFFF) > 0xFFF);
+    set_flag(gb, c, result > 0xFFFF);
+    
+    gb->cpu.HL = result & 0xFFFF;
+}
+
+void SUB_R(GameBoy *gb, uint8_t val, bool use_carry)
+{
+    uint8_t carry = use_carry ? get_flag(gb, c) : 0;
+    uint8_t result = (uint16_t)gb->cpu.A - (val + carry);
+
+    bool half_carry = (gb->cpu.A & 0x0F) < ((val & 0x0F) + carry);
+
+    set_flag(gb, z, result == 0);
+    set_flag(gb, n, true);
+    set_flag(gb, h, half_carry);
+    set_flag(gb, c, gb->cpu.A < val + carry);
+
+    gb->cpu.A = result;
+}
+
+void CP_R(GameBoy *gb, uint8_t val)
 {
     uint8_t result = gb->cpu.A - val;
 
@@ -247,8 +274,24 @@ void SUB_R(GameBoy *gb, uint8_t val)
     set_flag(gb, n, true);
     set_flag(gb, h, half_carry);
     set_flag(gb, c, gb->cpu.A < val);
+}
 
-    gb->cpu.A = result;
+void INC_R(GameBoy *gb, uint8_t *reg)
+{
+    bool half_carry = ((*reg & 0x0F) + 1) > 0x0F;
+    (*reg)++;
+    set_flag(gb, z, *reg == 0);
+    set_flag(gb, n, 0);
+    set_flag(gb, h, half_carry);
+}
+
+void DEC_R(GameBoy *gb, uint8_t *reg)
+{
+    bool half_carry = (*reg & 0x0F) == 0;
+    (*reg)--;
+    set_flag(gb, z, *reg == 0);
+    set_flag(gb, n, 1);
+    set_flag(gb, h, half_carry);
 }
 
 #define X(code, cyc, text, impl) static void OP_##code(GameBoy *gb);
@@ -287,6 +330,8 @@ void print_cpu_state(GameBoy *gb)
     printf("Immediate (n): 0x%x\n", gb->cpu.memory[gb->cpu.PC + 1]);
 }
 
+
+
 int main()
 {
     GameBoy gb = {0};
@@ -301,7 +346,7 @@ int main()
     gb.cpu.memory[0x105] = 0x99;
     gb.cpu.memory[0x106] = 0xea;
     gb.cpu.memory[0x107] = 0x78;
-    gb.cpu.memory[0x108] = 0x56;*/
+    gb.cpu.memory[0x108] = 0x56;
  
     gb.cpu.memory[0x100] = 0x3E; // LD A, 0x05
     gb.cpu.memory[0x101] = 0x05;
@@ -315,9 +360,27 @@ int main()
     gb.cpu.memory[0x106] = 0xD6; // SUB 0xFD (wrap test)
     gb.cpu.memory[0x107] = 0xFD;
         
-    gb.cpu.memory[0x108] = 0x00; // NOP (end marker)
+    gb.cpu.memory[0x108] = 0x00; // NOP (end marker)*/
 
     gb.cpu.PC = 0x100;
+
+    // load this into gb->cpu.memory starting at 0x100
+    gb.cpu.memory[0x100] = 0x3E; // LD A, 0x15
+    gb.cpu.memory[0x101] = 0x15;
+    
+    gb.cpu.memory[0x102] = 0x37; // SCF (set carry = 1)
+    gb.cpu.memory[0x103] = 0x00; // NOP placeholder (just increment PC)
+    
+    gb.cpu.memory[0x104] = 0xDE; // SBC 0x07
+    gb.cpu.memory[0x105] = 0x07;
+    
+    gb.cpu.memory[0x106] = 0xDE; // SBC 0x0F
+    gb.cpu.memory[0x107] = 0x0F;
+    
+    gb.cpu.memory[0x108] = 0xDE; // SBC 0x15
+    gb.cpu.memory[0x109] = 0x15;
+    
+    gb.cpu.memory[0x10A] = 0x00; // NOP / end
 
     while(1)
     {

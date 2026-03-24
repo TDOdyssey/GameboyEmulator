@@ -1,9 +1,5 @@
-X(0x00, 1, "NOP",
-    /* TODO */
-)
-X(0x10, 1, "STOP",
-    /* TODO */
-)
+X(0x00, 1, "NOP", /* TODO */ )
+X(0x10, 1, "STOP", /* TODO */ )
 
 // 8-bit load instructions
 X(0x02, 2, "LD (BC), A",    LD_R_R(&gb->cpu.memory[gb->cpu.BC], &gb->cpu.A); )
@@ -119,60 +115,159 @@ X(0xd5, 4, "PUSH DE", push(gb, gb->cpu.DE); )
 X(0xe5, 4, "PUSH HL", push(gb, gb->cpu.HL); )
 X(0xf5, 4, "PUSH AF", push(gb, gb->cpu.AF); )
 
-X(0x08, 5, "LD (nn), SP",
-    uint8_t sp_low = gb->cpu.SP & 0xFF;
-    uint8_t sp_high = gb->cpu.SP >> 8;
-
-    gb->cpu.memory[nn(gb)] = sp_low;
-    gb->cpu.memory[nn(gb)+1] = sp_high;
+X(0x08, 5, "LD (nn), SP", \
+    uint8_t sp_low = gb->cpu.SP & 0xFF; \
+    uint8_t sp_high = gb->cpu.SP >> 8; \
+    gb->cpu.memory[nn(gb)] = sp_low; \
+    gb->cpu.memory[nn(gb)+1] = sp_high; \
 )
-X(0xf8, 3, "LD HL, SP+e", /* TODO */ )
-X(0xf9, 2, "LD SP, HL", /* TODO */ )
+X(0xf8, 3, "LD HL, SP+e",  \
+int8_t e = (int8_t)gb->cpu.memory[++gb->cpu.PC]; \
+gb->cpu.HL = gb->cpu.SP + e; \
+set_flag(gb, z, false); \
+set_flag(gb, n, false); \
+set_flag(gb, h, (gb->cpu.SP & 0xF) + (e & 0xF) > 0xF); \
+set_flag(gb, c, (gb->cpu.SP & 0xFF) + (e & 0xFF) > 0xFF); \
+)
+
+X(0xf9, 2, "LD SP, HL", gb->cpu.SP = gb->cpu.HL; )
 
 // 8-bit arithmetic/logical
 
-// ADD
-X(0x80, 1, "ADD B", ADD_R(gb, gb->cpu.B); )
-X(0x81, 1, "ADD C", ADD_R(gb, gb->cpu.C); )
-X(0x82, 1, "ADD D", ADD_R(gb, gb->cpu.D); )
-X(0x83, 1, "ADD E", ADD_R(gb, gb->cpu.E); )
-X(0x84, 1, "ADD H", ADD_R(gb, gb->cpu.H); )
-X(0x85, 1, "ADD L", ADD_R(gb, gb->cpu.L); )
-X(0x86, 2, "ADD (HL)", ADD_R(gb, gb->cpu.memory[gb->cpu.HL]); )
-X(0x87, 1, "ADD A", ADD_R(gb, gb->cpu.A); )
+// INC
+X(0x04, 1, "INC B", INC_R(gb, &gb->cpu.B); )
+X(0x14, 1, "INC D", INC_R(gb, &gb->cpu.D); )
+X(0x24, 1, "INC H", INC_R(gb, &gb->cpu.H); )
+X(0x34, 3, "INC (HL)", INC_R(gb, &gb->cpu.memory[gb->cpu.HL]); )
+X(0x0c, 1, "INC C", INC_R(gb, &gb->cpu.C); )
+X(0x1c, 1, "INC E", INC_R(gb, &gb->cpu.E); )
+X(0x2c, 1, "INC L", INC_R(gb, &gb->cpu.L); )
+X(0x3c, 1, "INC A", INC_R(gb, &gb->cpu.A); )
 
-X(0xc6, 2, "ADD n", ADD_R(gb, gb->cpu.memory[++gb->cpu.PC]); )
+// DEC 
+X(0x05, 1, "DEC B", DEC_R(gb, &gb->cpu.B); )
+X(0x15, 1, "DEC D", DEC_R(gb, &gb->cpu.D); )
+X(0x25, 1, "DEC H", DEC_R(gb, &gb->cpu.H); )
+X(0x35, 3, "DEC (HL)", DEC_R(gb, &gb->cpu.memory[gb->cpu.HL]); )
+X(0x0d, 1, "DEC C", DEC_R(gb, &gb->cpu.C); )
+X(0x1d, 1, "DEC E", DEC_R(gb, &gb->cpu.E); )
+X(0x2d, 1, "DEC L", DEC_R(gb, &gb->cpu.L); )
+X(0x3d, 1, "DEC A", DEC_R(gb, &gb->cpu.A); )
+
+X(0x27, 1, "DAA", /* TODO */ )
+X(0x37, 1, "SCF", set_flag(gb, n, false); set_flag(gb, h, false); set_flag(gb, c, true); )
+
+X(0x2f, 1, "CPL", gb->cpu.A = ~gb->cpu.A; set_flag(gb, n, 1); set_flag(gb, h, 1); )
+X(0x3f, 1, "CCF", set_flag(gb, c, !(get_flag(gb, c))); set_flag(gb, n, false); set_flag(gb, h, false); )
+
+// ADD
+X(0x80, 1, "ADD B", ADD_R(gb, gb->cpu.B, false); )
+X(0x81, 1, "ADD C", ADD_R(gb, gb->cpu.C, false); )
+X(0x82, 1, "ADD D", ADD_R(gb, gb->cpu.D, false); )
+X(0x83, 1, "ADD E", ADD_R(gb, gb->cpu.E, false); )
+X(0x84, 1, "ADD H", ADD_R(gb, gb->cpu.H, false); )
+X(0x85, 1, "ADD L", ADD_R(gb, gb->cpu.L, false); )
+X(0x86, 2, "ADD (HL)", ADD_R(gb, gb->cpu.memory[gb->cpu.HL], false); )
+X(0x87, 1, "ADD A", ADD_R(gb, gb->cpu.A, false); )
+
+X(0xc6, 2, "ADD n", ADD_R(gb, gb->cpu.memory[++gb->cpu.PC], false); )
 
 // ADC
-X(0x88, 1, "ADC B", ADD_R(gb, gb->cpu.B + get_flag(gb, c)); )
-X(0x89, 1, "ADC C", ADD_R(gb, gb->cpu.C + get_flag(gb, c)); )
-X(0x8a, 1, "ADC D", ADD_R(gb, gb->cpu.D + get_flag(gb, c)); )
-X(0x8b, 1, "ADC E", ADD_R(gb, gb->cpu.E + get_flag(gb, c)); )
-X(0x8c, 1, "ADC H", ADD_R(gb, gb->cpu.H + get_flag(gb, c)); )
-X(0x8d, 1, "ADC L", ADD_R(gb, gb->cpu.L + get_flag(gb, c)); )
-X(0x8e, 2, "ADD (HL)", ADD_R(gb, gb->cpu.memory[gb->cpu.HL] + get_flag(gb, c)); )
-X(0x8f, 1, "ADC A", ADD_R(gb, gb->cpu.A + get_flag(gb, c)); )
+X(0x88, 1, "ADC B", ADD_R(gb, gb->cpu.B, true); )
+X(0x89, 1, "ADC C", ADD_R(gb, gb->cpu.C, true); )
+X(0x8a, 1, "ADC D", ADD_R(gb, gb->cpu.D, true); )
+X(0x8b, 1, "ADC E", ADD_R(gb, gb->cpu.E, true); )
+X(0x8c, 1, "ADC H", ADD_R(gb, gb->cpu.H, true); )
+X(0x8d, 1, "ADC L", ADD_R(gb, gb->cpu.L, true); )
+X(0x8e, 2, "ADD (HL)", ADD_R(gb, gb->cpu.memory[gb->cpu.HL], true); )
+X(0x8f, 1, "ADC A", ADD_R(gb, gb->cpu.A, true); )
 
-X(0xce, 2, "ADC n", ADD_R(gb, gb->cpu.memory[++gb->cpu.PC] + get_flag(gb, c)); )
+X(0xce, 2, "ADC n", ADD_R(gb, gb->cpu.memory[++gb->cpu.PC], true); )
 
 // SUB
-X(0x90, 1, "SUB B", SUB_R(gb, gb->cpu.B); )
-X(0x91, 1, "SUB C", SUB_R(gb, gb->cpu.C); )
-X(0x92, 1, "SUB D", SUB_R(gb, gb->cpu.D); )
-X(0x93, 1, "SUB E", SUB_R(gb, gb->cpu.E); )
-X(0x94, 1, "SUB H", SUB_R(gb, gb->cpu.H); )
-X(0x95, 1, "SUB L", SUB_R(gb, gb->cpu.L); )
-X(0x96, 2, "SUB (HL)", SUB_R(gb, gb->cpu.memory[gb->cpu.HL]); )
-X(0x97, 1, "SUB A", SUB_R(gb, gb->cpu.A); )
+X(0x90, 1, "SUB B", SUB_R(gb, gb->cpu.B, false); )
+X(0x91, 1, "SUB C", SUB_R(gb, gb->cpu.C, false); )
+X(0x92, 1, "SUB D", SUB_R(gb, gb->cpu.D, false); )
+X(0x93, 1, "SUB E", SUB_R(gb, gb->cpu.E, false); )
+X(0x94, 1, "SUB H", SUB_R(gb, gb->cpu.H, false); )
+X(0x95, 1, "SUB L", SUB_R(gb, gb->cpu.L, false); )
+X(0x96, 2, "SUB (HL)", SUB_R(gb, gb->cpu.memory[gb->cpu.HL], false); )
+X(0x97, 1, "SUB A", SUB_R(gb, gb->cpu.A, false); )
 
-X(0xd6, 2, "SUB n", SUB_R(gb, gb->cpu.memory[++gb->cpu.PC]); )
+X(0xd6, 2, "SUB n", SUB_R(gb, gb->cpu.memory[++gb->cpu.PC], false); )
 
 // SBC
+X(0x98, 1, "SBC B", SUB_R(gb, gb->cpu.B, true); )
+X(0x99, 1, "SBC C", SUB_R(gb, gb->cpu.C, true); )
+X(0x9a, 1, "SBC D", SUB_R(gb, gb->cpu.D, true); )
+X(0x9b, 1, "SBC E", SUB_R(gb, gb->cpu.E, true); )
+X(0x9c, 1, "SBC H", SUB_R(gb, gb->cpu.H, true); )
+X(0x9d, 1, "SBC L", SUB_R(gb, gb->cpu.L, true); )
+X(0x9e, 2, "SBC (HL)", SUB_R(gb, gb->cpu.memory[gb->cpu.HL], true); )
+X(0x9f, 1, "SBC A", SUB_R(gb, gb->cpu.A, true); )
+
+X(0xde, 2, "SBC n", SUB_R(gb, gb->cpu.memory[++gb->cpu.PC], true); )
 
 // AND
+X(0xa0, 1, "AND B", gb->cpu.A &= gb->cpu.B; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n, 0); set_flag(gb, h, 1); set_flag(gb, c, 0); )
+X(0xa1, 1, "AND C", gb->cpu.A &= gb->cpu.C; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n, 0); set_flag(gb, h, 1); set_flag(gb, c, 0); )
+X(0xa2, 1, "AND D", gb->cpu.A &= gb->cpu.D; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n, 0); set_flag(gb, h, 1); set_flag(gb, c, 0); )
+X(0xa3, 1, "AND E", gb->cpu.A &= gb->cpu.E; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n, 0); set_flag(gb, h, 1); set_flag(gb, c, 0); )
+X(0xa4, 1, "AND H", gb->cpu.A &= gb->cpu.H; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n, 0); set_flag(gb, h, 1); set_flag(gb, c, 0); )
+X(0xa5, 1, "AND L", gb->cpu.A &= gb->cpu.L; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n, 0); set_flag(gb, h, 1); set_flag(gb, c, 0); )
+X(0xa6, 2, "AND (HL)", gb->cpu.A &= gb->cpu.memory[gb->cpu.HL]; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n, 0); set_flag(gb, h, 1); set_flag(gb, c, 0); )
+X(0xa7, 1, "AND A", gb->cpu.A &= gb->cpu.A; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n, 0); set_flag(gb, h, 1); set_flag(gb, c, 0); )
+
+X(0xe6, 2, "AND n", gb->cpu.A &= gb->cpu.memory[++gb->cpu.PC]; )
 
 // XOR
+X(0xa8, 1, "XOR B", gb->cpu.A ^= gb->cpu.B; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n | h | c, 0); )
+X(0xa9, 1, "XOR C", gb->cpu.A ^= gb->cpu.C; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n | h | c, 0); )
+X(0xaa, 1, "XOR D", gb->cpu.A ^= gb->cpu.D; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n | h | c, 0); )
+X(0xab, 1, "XOR E", gb->cpu.A ^= gb->cpu.E; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n | h | c, 0); )
+X(0xac, 1, "XOR H", gb->cpu.A ^= gb->cpu.H; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n | h | c, 0); )
+X(0xad, 1, "XOR L", gb->cpu.A ^= gb->cpu.L; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n | h | c, 0); )
+X(0xae, 2, "XOR (HL)", gb->cpu.A ^= gb->cpu.memory[gb->cpu.HL]; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n | h | c, 0); )
+X(0xaf, 1, "XOR A", gb->cpu.A ^= gb->cpu.A; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n | h | c, 0); )
+
+X(0xee, 2, "XOR n", gb->cpu.A &= gb->cpu.memory[++gb->cpu.PC]; )
 
 // OR
+X(0xb0, 1, "OR B", gb->cpu.A |= gb->cpu.B; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n | h | c, 0); )
+X(0xb1, 1, "OR C", gb->cpu.A |= gb->cpu.C; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n | h | c, 0); )
+X(0xb2, 1, "OR D", gb->cpu.A |= gb->cpu.D; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n | h | c, 0); )
+X(0xb3, 1, "OR E", gb->cpu.A |= gb->cpu.E; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n | h | c, 0); )
+X(0xb4, 1, "OR H", gb->cpu.A |= gb->cpu.H; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n | h | c, 0); )
+X(0xb5, 1, "OR L", gb->cpu.A |= gb->cpu.L; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n | h | c, 0); )
+X(0xb6, 2, "OR (HL)", gb->cpu.A |= gb->cpu.memory[gb->cpu.HL]; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n | h | c, 0); )
+X(0xb7, 1, "OR A", gb->cpu.A |= gb->cpu.A; set_flag(gb, z, gb->cpu.A == 0); set_flag(gb, n | h | c, 0); )
+
+X(0xf6, 2, "OR n", gb->cpu.A |= gb->cpu.memory[++gb->cpu.PC]; )
 
 // CP
+X(0xb8, 1, "CP B", CP_R(gb, gb->cpu.B); )
+X(0xb9, 1, "CP C", CP_R(gb, gb->cpu.C); )
+X(0xba, 1, "CP D", CP_R(gb, gb->cpu.D); )
+X(0xbb, 1, "CP E", CP_R(gb, gb->cpu.E); )
+X(0xbc, 1, "CP H", CP_R(gb, gb->cpu.H); )
+X(0xbd, 1, "CP L", CP_R(gb, gb->cpu.L); )
+X(0xbe, 2, "CP (HL)", CP_R(gb, gb->cpu.memory[gb->cpu.HL]); )
+X(0xbf, 1, "CP A", CP_R(gb, gb->cpu.A); )
+
+X(0xfe, 2, "CP n", CP_R(gb, gb->cpu.memory[++gb->cpu.PC]); )
+
+// 16 bit arithmetic
+X(0x03, 2, "INC BC", gb->cpu.BC++; )
+X(0x13, 2, "INC DE", gb->cpu.DE++; )
+X(0x23, 2, "INC HL", gb->cpu.HL++; )
+X(0x33, 2, "INC SP", gb->cpu.SP++; )
+
+X(0x09, 2, "ADD HL,BC", ADD_HL(gb, gb->cpu.BC); )
+X(0x19, 2, "ADD HL,DE", ADD_HL(gb, gb->cpu.DE); )
+X(0x29, 2, "ADD HL,HL", ADD_HL(gb, gb->cpu.HL); )
+X(0x39, 2, "ADD HL,SP", ADD_HL(gb, gb->cpu.SP); )
+
+X(0x0b, 2, "DEC BC", gb->cpu.BC--; )
+X(0x1b, 2, "DEC DE", gb->cpu.DE--; )
+X(0x2b, 2, "DEC HL", gb->cpu.HL--; )
+X(0x3b, 2, "DEC SP", gb->cpu.SP--; )
