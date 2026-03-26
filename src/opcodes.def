@@ -271,3 +271,12 @@ X(0x0b, 2, "DEC BC", gb->cpu.BC--; )
 X(0x1b, 2, "DEC DE", gb->cpu.DE--; )
 X(0x2b, 2, "DEC HL", gb->cpu.HL--; )
 X(0x3b, 2, "DEC SP", gb->cpu.SP--; )
+
+X(0xe8, 4, "ADD SP, e",  \
+int8_t e = (int8_t)gb->cpu.memory[++gb->cpu.PC]; \
+set_flag(gb, z, false); \
+set_flag(gb, n, false); \
+set_flag(gb, h, (gb->cpu.SP & 0xF) + (e & 0xF) > 0xF); \
+set_flag(gb, c, (gb->cpu.SP & 0xFF) + (e & 0xFF) > 0xFF); \
+gb->cpu.SP = gb->cpu.SP + e; \
+)

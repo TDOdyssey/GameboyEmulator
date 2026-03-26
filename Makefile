@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall
+CFLAGS = -Wall -s -O3
 SRC = $(wildcard src/*.c)
 OBJ = $(SRC:src/%.c=build/%.o)
 

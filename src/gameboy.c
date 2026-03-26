@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 typedef struct {
     // ------ CPU ------
@@ -62,6 +63,7 @@ enum GBCPU_flags {
 
 typedef struct {
     GBCPU cpu;
+    int cycles;
 } GameBoy;
 
 // Memory map (https://gbdev.io/pandocs/Memory_Map.html)
@@ -142,16 +144,6 @@ uint8_t read8(GameBoy *gb, uint16_t addr)
         return 0x00;
 
     return gb->cpu.memory[addr];
-}
-
-void reset(GameBoy *gb)
-{
-
-}
-
-void clock(GameBoy *gb)
-{
-
 }
 
 // Instructions
@@ -294,11 +286,13 @@ void DEC_R(GameBoy *gb, uint8_t *reg)
     set_flag(gb, h, half_carry);
 }
 
+/*
 #define X(code, cyc, text, impl) static void OP_##code(GameBoy *gb);
 #include "opcodes.def"
 #undef X
 
 typedef struct {
+    uint8_t op;
     void (*function)(GameBoy *gb);
     unsigned char cycles;
     const char *text;
@@ -312,10 +306,55 @@ static const opcode_table_entry opcode_table[256] = {
 #define X(code, cyc, text, impl) static void OP_##code(GameBoy *gb) { impl; }
 #include "opcodes.def"
 #undef X
+*/
+
+typedef struct {
+    uint8_t code;
+    unsigned char cycles;
+    const char *text;
+} opcode_table_entry;
+static const opcode_table_entry opcode_table[256] = {
+#define X(code, cyc, text, impl)  [code] = {code, cyc, text},
+#include "opcodes.def"
+#undef X
+};
+
+void execute_op(GameBoy *gb, uint8_t op_code)
+{
+    switch(op_code)
+    {
+#define X(code, cyc, text, impl) case code: { impl; } break;
+#include "opcodes.def"
+#undef X
+        default: break;
+    }
+}
+
+void reset(GameBoy *gb)
+{
+
+}
+
+void clock(GameBoy *gb)
+{
+    if(gb->cycles > 0)
+    {
+        gb->cycles--;
+        return;
+    }
+
+    opcode_table_entry op = opcode_table[gb->cpu.memory[gb->cpu.PC]];
+    execute_op(gb, op.code);
+
+    gb->cycles = op.cycles - 1;
+    gb->cpu.PC++;
+}
 
 void print_cpu_state(GameBoy *gb)
 {
+    system("clear");
     printf("Current instruction: %s\n", opcode_table[gb->cpu.memory[gb->cpu.PC]].text);
+    printf("Cycles left: %d\n", gb->cycles);
     printf("Registers:\n");
     printf("A: 0x%02x\n", gb->cpu.A);
     printf("F: 0x%02x | Z=%d N=%d H=%d C=%d\n", gb->cpu.F, get_flag(gb, z), get_flag(gb, n), get_flag(gb, h), get_flag(gb, c));
@@ -330,11 +369,9 @@ void print_cpu_state(GameBoy *gb)
     printf("Immediate (n): 0x%x\n", gb->cpu.memory[gb->cpu.PC + 1]);
 }
 
-
-
 int main()
 {
-    GameBoy gb = {0};
+    GameBoy *gb = malloc(sizeof(GameBoy));
 
     /* 
     gb.cpu.memory[0x100] = 0xfa; // 
@@ -362,37 +399,36 @@ int main()
         
     gb.cpu.memory[0x108] = 0x00; // NOP (end marker)*/
 
-    gb.cpu.PC = 0x100;
+    gb->cpu.PC = 0x100;
 
     // load this into gb->cpu.memory starting at 0x100
-    gb.cpu.memory[0x100] = 0x3E; // LD A, 0x15
-    gb.cpu.memory[0x101] = 0x15;
+    gb->cpu.memory[0x100] = 0x3E; // LD A, 0x15
+    gb->cpu.memory[0x101] = 0x15;
     
-    gb.cpu.memory[0x102] = 0x37; // SCF (set carry = 1)
-    gb.cpu.memory[0x103] = 0x00; // NOP placeholder (just increment PC)
+    gb->cpu.memory[0x102] = 0x37; // SCF (set carry = 1)
+    gb->cpu.memory[0x103] = 0x00; // NOP placeholder (just increment PC)
     
-    gb.cpu.memory[0x104] = 0xDE; // SBC 0x07
-    gb.cpu.memory[0x105] = 0x07;
+    gb->cpu.memory[0x104] = 0xDE; // SBC 0x07
+    gb->cpu.memory[0x105] = 0x07;
     
-    gb.cpu.memory[0x106] = 0xDE; // SBC 0x0F
-    gb.cpu.memory[0x107] = 0x0F;
+    gb->cpu.memory[0x106] = 0xDE; // SBC 0x0F
+    gb->cpu.memory[0x107] = 0x0F;
     
-    gb.cpu.memory[0x108] = 0xDE; // SBC 0x15
-    gb.cpu.memory[0x109] = 0x15;
+    gb->cpu.memory[0x108] = 0xDE; // SBC 0x15
+    gb->cpu.memory[0x109] = 0x15;
     
-    gb.cpu.memory[0x10A] = 0x00; // NOP / end
-
+    gb->cpu.memory[0x10A] = 0x00; // NOP / end
+                                 //
+                                 //
     while(1)
     {
-        print_cpu_state(&gb);
+        print_cpu_state(gb);
 
         char c = getchar();
-
         if(c == 'q')
             break;
 
-        opcode_table[gb.cpu.memory[gb.cpu.PC]].function(&gb);
-        gb.cpu.PC++;
+        clock(gb);
     }
     
     //printf("memory[0x5678] = %x\n", gb.cpu.memory[0x5678]);
