@@ -64,6 +64,7 @@ enum GBCPU_flags {
 typedef struct {
     GBCPU cpu;
     int cycles;
+    int ime_delay;
     bool ime;
 } GameBoy;
 
@@ -171,7 +172,7 @@ uint8_t *r8(GameBoy *gb, uint8_t val) // val is 3 bits
         case 6:
             return &gb->cpu.memory[gb->cpu.HL];
         case 7:
-            return &gb->cpu.memory[gb->cpu.A];
+            return &gb->cpu.A;
     }
 
     // We should never get here...
@@ -309,6 +310,8 @@ static const opcode_table_entry opcode_table[256] = {
 #undef X
 */
 
+void execute_cb_op(GameBoy *gb, uint8_t op);
+
 typedef struct {
     uint8_t code;
     unsigned char cycles;
@@ -319,6 +322,7 @@ static const opcode_table_entry opcode_table[256] = {
 #include "opcodes.def"
 #undef X
 };
+
 
 void execute_op(GameBoy *gb, uint8_t op_code)
 {
@@ -331,9 +335,157 @@ void execute_op(GameBoy *gb, uint8_t op_code)
     }
 }
 
+void execute_cb_op(GameBoy *gb, uint8_t op)
+{
+
+    /* TODO: Account for (HL) */
+
+    uint8_t *reg = r8(gb, op); // val is 3 bits
+    if(op <= 0b00001000) // rlc
+    {
+        uint8_t carry = ((*reg) >> 7) & 1;
+        (*reg) <<= 1;
+        (*reg) = ((*reg) & 0xFE) | carry;
+
+        set_flag(gb, n | h, 0);
+        set_flag(gb, z, (*reg) == 0);
+        set_flag(gb, c, carry);
+    }
+    else if(op <= 0b00010000) // rrc
+    {
+        uint8_t carry = (*reg) & 1;
+        (*reg) >>= 1;
+        (*reg) = ((*reg) & 0x7F) | (carry << 7);
+
+        set_flag(gb, n | h, 0);
+        set_flag(gb, z, (*reg) == 0);
+        set_flag(gb, c, carry);
+    }
+    else if(op <= 0b00011000) // rl
+    {
+        uint8_t carry = ((*reg) >> 7) & 1;
+        (*reg) <<= 1;
+        (*reg) = ((*reg) & 0x7F) | (get_flag(gb, c));
+
+        set_flag(gb, n | h, 0);
+        set_flag(gb, z, (*reg) == 0);
+        set_flag(gb, c, carry);
+    }
+    else if(op <= 0b00100000) // rr
+    {
+        uint8_t carry = (*reg) & 1;
+        (*reg) >>= 1;
+        (*reg) = ((*reg) & 0x7F) | (get_flag(gb, c) << 7);
+
+        set_flag(gb, n | h, 0);
+        set_flag(gb, z, (*reg) == 0);
+        set_flag(gb, c, carry);
+    }
+    else if(op <= 0b00101000) // sla
+    {
+        uint8_t carry = ((*reg) >> 7) & 1;
+        (*reg) <<= 1;
+        (*reg) &= 0xFE;
+
+        set_flag(gb, n | h, 0);
+        set_flag(gb, z, (*reg) == 0);
+        set_flag(gb, c, carry);
+    }
+    else if(op <= 0b00110000) // sra
+    {
+        uint8_t carry = (*reg) & 1;
+        (*reg) >>= 1;
+        (*reg) = ((*reg) & 0x7F) | (((*reg) & 0x40) << 1);
+
+        set_flag(gb, n | h, 0);
+        set_flag(gb, z, (*reg) == 0);
+        set_flag(gb, c, carry);
+    }
+    else if(op <= 0b00111000) // swap
+    {
+        uint8_t low = (*reg) & 0x0F;
+        uint8_t high = (*reg) & 0xF0;
+
+        *reg = (low << 4) | ((high >> 4) & 0x0F);
+
+        set_flag(gb, n | h | c, 0);
+        set_flag(gb, z, (*reg) == 0);
+    }
+    else if(op <= 0b01000000) // srl
+    {
+        uint8_t carry = (*reg) & 1;
+        (*reg) >>= 1;
+        (*reg) &= 0x7F;
+
+        set_flag(gb, n | h, 0);
+        set_flag(gb, z, (*reg) == 0);
+        set_flag(gb, c, carry);
+    }
+    else if(op <= 0b10000000) // bit
+    {
+        uint8_t bit_index = ((*reg) & 0b00111000) >> 3;
+        uint8_t bit = ((*reg) >> bit_index) & 0x01;
+
+        set_flag(gb, n, 0);
+        set_flag(gb, h, 1);
+        set_flag(gb, z, bit == 0);
+    }
+    else if(op <= 0b11000000) // res
+    {
+        uint8_t bit_index = ((*reg) & 0b00111000) >> 3;
+        *reg &= ~(1 << bit_index);
+    }
+    else                      // set
+    {
+        uint8_t bit_index = ((*reg) & 0b00111000) >> 3;
+        *reg |= 1 << bit_index;
+    }
+}
+
+
 void reset(GameBoy *gb)
 {
 
+}
+
+bool handle_interrupts(GameBoy *gb)
+{
+    uint8_t IE = gb->cpu.memory[0xFFFF];
+    uint8_t IF = gb->cpu.memory[0xFF0F];
+
+    if((IE & IF) == 0)
+        return false;
+
+    if(!gb->ime)
+        return false;
+    
+    gb->ime = false;
+
+    int interrupt = -1;
+    for(int i = 0; i < 5; i++)
+    {
+        if((IE & IF) & (1 << i))
+        {
+            interrupt = i;
+            break;
+        }
+    }
+
+    gb->cpu.memory[0xFF0F] &= ~(1 << interrupt);
+
+    push(gb, gb->cpu.PC);
+
+    static const uint16_t vector[5] = {
+        0x40, // VBlank
+        0x48, // LCD
+        0x50, // Timer
+        0x58, // Serial
+        0x60, // Joypad
+    };
+
+    gb->cycles = 5;
+
+    return true;
 }
 
 void clock(GameBoy *gb)
@@ -344,10 +496,20 @@ void clock(GameBoy *gb)
         return;
     }
 
+    if(handle_interrupts(gb))
+        return;
+
     opcode_table_entry op = opcode_table[gb->cpu.memory[gb->cpu.PC]];
 
     gb->cycles = op.cycles - 1;
     execute_op(gb, op.code);
+
+    if(gb->ime_delay > 0)
+    {
+        gb->ime_delay--;
+        if(gb->ime_delay == 0)
+            gb->ime = true;
+    }
 
     gb->cpu.PC++;
 }

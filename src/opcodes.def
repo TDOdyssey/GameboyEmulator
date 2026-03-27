@@ -324,3 +324,12 @@ X(0xcf, 4, "RST 0x08", push(gb, gb->cpu.PC); gb->cpu.PC = 0x0008; )
 X(0xdf, 4, "RST 0x18", push(gb, gb->cpu.PC); gb->cpu.PC = 0x0018; )
 X(0xef, 4, "RST 0x28", push(gb, gb->cpu.PC); gb->cpu.PC = 0x0028; )
 X(0xff, 4, "RST 0x38", push(gb, gb->cpu.PC); gb->cpu.PC = 0x0038; )
+
+// Misc
+X(0xf3, 1, "DI", gb->ime = false; gb->ime_delay = 0; )
+X(0xfb, 1, "EI", gb->ime_delay = 2; )
+
+
+// CB-Prefix
+X(0xcb, 1, "CB", execute_cb_op(gb, gb->cpu.memory[++gb->cpu.PC]); )
+
