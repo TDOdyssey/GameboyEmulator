@@ -280,3 +280,47 @@ set_flag(gb, h, (gb->cpu.SP & 0xF) + (e & 0xF) > 0xF); \
 set_flag(gb, c, (gb->cpu.SP & 0xFF) + (e & 0xFF) > 0xFF); \
 gb->cpu.SP = gb->cpu.SP + e; \
 )
+
+// Control flow
+
+// Relative jump
+X(0x20, 2, "JR NZ, e", int8_t e = (int8_t)gb->cpu.memory[++gb->cpu.PC]; if(!get_flag(gb, z)) { gb->cpu.PC += e; gb->cycles = 3; } )
+X(0x30, 2, "JR NC, e", int8_t e = (int8_t)gb->cpu.memory[++gb->cpu.PC]; if(!get_flag(gb, c)) { gb->cpu.PC += e; gb->cycles = 3; } )
+X(0x18, 3, "JR e", int8_t e = (int8_t)gb->cpu.memory[++gb->cpu.PC]; gb->cpu.PC += e; )
+X(0x28, 2, "JR Z, e", int8_t e = (int8_t)gb->cpu.memory[++gb->cpu.PC]; if(get_flag(gb, z)) { gb->cpu.PC += e; gb->cycles = 3; } )
+X(0x38, 2, "JR C, e", int8_t e = (int8_t)gb->cpu.memory[++gb->cpu.PC]; if(get_flag(gb, c)) { gb->cpu.PC += e; gb->cycles = 3; } )
+
+// Return from function
+X(0xc0, 2, "RET NZ", if(!get_flag(gb, z)) { gb->cpu.PC = pop(gb); gb->cycles = 5; } )
+X(0xd0, 2, "RET NC", if(!get_flag(gb, c)) { gb->cpu.PC = pop(gb); gb->cycles = 5; } )
+X(0xc8, 2, "RET Z", if(get_flag(gb, c)) { gb->cpu.PC = pop(gb); gb->cycles = 5; } )
+X(0xd8, 2, "RET C", if(get_flag(gb, c)) { gb->cpu.PC = pop(gb); gb->cycles = 5; } )
+X(0xc9, 4, "RET", gb->cpu.PC = pop(gb); )
+X(0xd9, 4, "RETI", gb->cpu.PC = pop(gb); gb->ime = 1; )
+
+// Jump
+X(0xc2, 3, "JP NZ, nn", uint16_t addr = nn(gb); if(!get_flag(gb, z)) {gb->cpu.PC = addr; gb->cycles = 4;} )
+X(0xd2, 3, "JP NC, nn", uint16_t addr = nn(gb); if(!get_flag(gb, c)) {gb->cpu.PC = addr; gb->cycles = 4;} )
+X(0xca, 3, "JP Z, nn", uint16_t addr = nn(gb); if(get_flag(gb, z)) {gb->cpu.PC = addr; gb->cycles = 4;} )
+X(0xda, 3, "JP C, nn", uint16_t addr = nn(gb); if(get_flag(gb, c)) {gb->cpu.PC = addr; gb->cycles = 4;} )
+X(0xc3, 4, "JP nn", gb->cpu.PC = nn(gb); )
+X(0xe9, 1, "JP HL", gb->cpu.PC = gb->cpu.HL; )
+
+// Call
+X(0xc4, 3, "CALL NZ, nn", uint16_t addr = nn(gb); if(!get_flag(gb, z)) { push(gb, gb->cpu.PC); gb->cpu.PC = addr; gb->cycles = 6; } )
+X(0xd4, 3, "CALL NC, nn", uint16_t addr = nn(gb); if(!get_flag(gb, c)) { push(gb, gb->cpu.PC); gb->cpu.PC = addr; gb->cycles = 6; } )
+X(0xcc, 3, "CALL Z, nn", uint16_t addr = nn(gb); if(get_flag(gb, z)) { push(gb, gb->cpu.PC); gb->cpu.PC = addr; gb->cycles = 6; } )
+X(0xdc, 3, "CALL C, nn", uint16_t addr = nn(gb); if(get_flag(gb, c)) { push(gb, gb->cpu.PC); gb->cpu.PC = addr; gb->cycles = 6; } )
+X(0xcd, 6, "CALL nn", uint16_t addr = nn(gb); push(gb, gb->cpu.PC); gb->cpu.PC = addr; )
+
+
+// Restart
+X(0xc7, 4, "RST 0x00", push(gb, gb->cpu.PC); gb->cpu.PC = 0x0000; )
+X(0xd7, 4, "RST 0x10", push(gb, gb->cpu.PC); gb->cpu.PC = 0x0010; )
+X(0xe7, 4, "RST 0x20", push(gb, gb->cpu.PC); gb->cpu.PC = 0x0020; )
+X(0xf7, 4, "RST 0x30", push(gb, gb->cpu.PC); gb->cpu.PC = 0x0030; )
+
+X(0xcf, 4, "RST 0x08", push(gb, gb->cpu.PC); gb->cpu.PC = 0x0008; )
+X(0xdf, 4, "RST 0x18", push(gb, gb->cpu.PC); gb->cpu.PC = 0x0018; )
+X(0xef, 4, "RST 0x28", push(gb, gb->cpu.PC); gb->cpu.PC = 0x0028; )
+X(0xff, 4, "RST 0x38", push(gb, gb->cpu.PC); gb->cpu.PC = 0x0038; )

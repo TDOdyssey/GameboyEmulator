@@ -64,6 +64,7 @@ enum GBCPU_flags {
 typedef struct {
     GBCPU cpu;
     int cycles;
+    bool ime;
 } GameBoy;
 
 // Memory map (https://gbdev.io/pandocs/Memory_Map.html)
@@ -196,7 +197,7 @@ uint16_t pop(GameBoy *gb)
 void push(GameBoy *gb, uint16_t val)
 {
     uint8_t low = val & 0xFF;
-    uint8_t high = val >> 8;
+    uint8_t high = (val >> 8) & 0xFF;
     gb->cpu.memory[--gb->cpu.SP] = high;
     gb->cpu.memory[--gb->cpu.SP] = low;
 }
@@ -344,9 +345,10 @@ void clock(GameBoy *gb)
     }
 
     opcode_table_entry op = opcode_table[gb->cpu.memory[gb->cpu.PC]];
-    execute_op(gb, op.code);
 
     gb->cycles = op.cycles - 1;
+    execute_op(gb, op.code);
+
     gb->cpu.PC++;
 }
 
