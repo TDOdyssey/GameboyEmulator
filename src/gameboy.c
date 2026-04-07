@@ -3,98 +3,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-typedef struct {
-    // ------ CPU ------
-
-    // Registers
-    union {
-        uint16_t AF;
-        struct {
-            uint8_t F;
-            uint8_t A;
-        };
-    };
-    union {
-        uint16_t BC;
-        struct {
-            uint8_t C;
-            uint8_t B;
-        };
-    };
-    union {
-        uint16_t DE;
-        struct {
-            uint8_t E;
-            uint8_t D;
-        };
-    };
-    union {
-        uint16_t HL;
-        struct {
-            uint8_t L;
-            uint8_t H;
-        };
-    };
-
-    uint16_t SP; // Stack pointer
-    uint16_t PC; // Program counter
-
-    uint8_t IR;
-    uint8_t IE;
-
-    uint8_t memory[0x10000];
-} GBCPU; // Sharp SM83 CPU core
-
-enum GBCPU_flags {
-    // Zero flag
-    z = (1 << 7), // Set iff the result of an operation is zero. Used by conditional jumps
-
-    // BCD flags used by the DAA instruction only
-    n = (1 << 6), // indicates whether the previous instruction has been a subtraction
-    h = (1 << 5), // indicates carry for the lower 4 bits of the result
-
-    // Carry flag
-    c = (1 << 4), // Is set: 
-                    // when the result of an 8-bit addition is higher than $FF;
-                    // when the result of a 16-bit addition is higher than $FFFF;
-                    // when the result of a subtraction or compairson is lower than zero;
-                    // when a rotate/shift operation shifts out a "1" bit.
-};
-
-typedef struct {
-    GBCPU cpu;
-    int cycles;
-    int ime_delay;
-    bool ime;
-} GameBoy;
-
-// Memory map (https://gbdev.io/pandocs/Memory_Map.html)
-// Start	End	    Description	                    Notes
-// 0000	    3FFF	16 KiB ROM bank 00	            From cartridge, usually a fixed bank
-// 4000	    7FFF	16 KiB ROM Bank 01–NN	        From cartridge, switchable bank via mapper (if any)
-// 8000	    9FFF	8 KiB Video RAM (VRAM)	        In CGB mode, switchable bank 0/1
-// A000	    BFFF	8 KiB External RAM	            From cartridge, switchable bank if any
-// C000	    CFFF	4 KiB Work RAM (WRAM)	
-// D000	    DFFF	4 KiB Work RAM (WRAM)	        In CGB mode, switchable bank 1–7
-// E000	    FDFF	Echo RAM (mirror of C000–DDFF)	Nintendo says use of this area is prohibited.
-// FE00	    FE9F	Object attribute memory (OAM)	
-// FEA0	    FEFF	Not Usable	                    Nintendo says use of this area is prohibited.
-// FF00	    FF7F	I/O Registers	
-// FF80	    FFFE	High RAM (HRAM)	
-// FFFF	    FFFF	Interrupt Enable register (IE)
-
-enum gb_ram_section {
-    ROM_BANK_00, // ??
-    ROM_BANK_NN,
-    VRAM, // Switchable 0/1 in CGB TODO
-    EXT,
-    WRAM, // last 4kb/8kb switchable 1-7 in CGB mode TODO
-    PROHIBITED,
-    OAM,
-    IO,
-    HRAM,
-    IE,
-};
+#include "gameboy.h"
 
 enum gb_ram_section gb_ram_section_from_addr(uint16_t addr)
 {
@@ -111,7 +20,7 @@ enum gb_ram_section gb_ram_section_from_addr(uint16_t addr)
     } else if(addr >= 0xD000 && addr < 0xE000) {
         return WRAM;
     } else if(addr >= 0xE000 && addr < 0xFE00) {
-        return PROHIBITED;
+        return ECHO;
     } else if(addr >= 0xFE00 && addr < 0xFEA0) {
         return OAM;
     } else if(addr >= 0xFEA0 && addr < 0xFF00) {
@@ -134,6 +43,8 @@ void write8(GameBoy *gb, uint16_t addr, uint8_t w)
 
     if(section == PROHIBITED)
         return;
+    else if(section == ECHO)
+        addr -= 0x2000;
     
     gb->cpu.memory[addr] = w;
 }
@@ -144,9 +55,21 @@ uint8_t read8(GameBoy *gb, uint16_t addr)
 
     if(section == PROHIBITED)
         return 0x00;
+    else if(section == ECHO)
+        addr -= 0x2000;
 
     return gb->cpu.memory[addr];
 }
+
+
+
+
+// MMU Abstraction
+
+
+
+
+
 
 // Instructions
 
@@ -179,28 +102,16 @@ uint8_t *r8(GameBoy *gb, uint8_t val) // val is 3 bits
     return 0;
 }
 
-void LD_R_R(uint8_t *dst, uint8_t *src) { *dst = *src; }
-
-uint16_t nn(GameBoy *gb)
+uint8_t read_imm8(GameBoy *gb)
 {
-    uint8_t low = gb->cpu.memory[++gb->cpu.PC];
-    uint8_t high = gb->cpu.memory[++gb->cpu.PC];
-    return (high << 8) | low;
+    return read8(gb, ++gb->cpu.PC);
 }
 
-uint16_t pop(GameBoy *gb)
+uint16_t read_imm16(GameBoy *gb)
 {
-    uint8_t low = gb->cpu.memory[gb->cpu.SP++];
-    uint8_t high = gb->cpu.memory[gb->cpu.SP++];
+    uint8_t low = read_imm8(gb);
+    uint8_t high = read_imm8(gb);
     return (high << 8) | low;
-}
-
-void push(GameBoy *gb, uint16_t val)
-{
-    uint8_t low = val & 0xFF;
-    uint8_t high = (val >> 8) & 0xFF;
-    gb->cpu.memory[--gb->cpu.SP] = high;
-    gb->cpu.memory[--gb->cpu.SP] = low;
 }
 
 void set_flag(GameBoy *gb, enum GBCPU_flags flag, bool value)
@@ -214,6 +125,21 @@ void set_flag(GameBoy *gb, enum GBCPU_flags flag, bool value)
 int get_flag(GameBoy *gb, enum GBCPU_flags flag)
 {
     return (gb->cpu.F & flag) ? 1 : 0;
+}
+
+uint16_t pop(GameBoy *gb)
+{
+    uint8_t low = read8(gb, gb->cpu.SP++);
+    uint8_t high = read8(gb, gb->cpu.SP++);
+    return (high << 8) | low;
+}
+
+void push(GameBoy *gb, uint16_t val)
+{
+    uint8_t low = val & 0xFF;
+    uint8_t high = (val >> 8) & 0xFF;
+    write8(gb, --gb->cpu.SP, high);
+    write8(gb, --gb->cpu.SP, low);
 }
 
 void ADD_R(GameBoy *gb, uint8_t val, bool use_carry)
@@ -277,6 +203,16 @@ void INC_R(GameBoy *gb, uint8_t *reg)
     set_flag(gb, z, *reg == 0);
     set_flag(gb, n, 0);
     set_flag(gb, h, half_carry);
+}
+
+uint8_t inc8(GameBoy *gb, uint8_t val)
+{
+    bool half_carry = ((val & 0x0F) + 1) > 0x0F;
+    val++;
+    set_flag(gb, z, val == 0);
+    set_flag(gb, n, 0);
+    set_flag(gb, h, half_carry);
+    return val;
 }
 
 void DEC_R(GameBoy *gb, uint8_t *reg)
@@ -533,69 +469,3 @@ void print_cpu_state(GameBoy *gb)
     printf("Immediate (n): 0x%x\n", gb->cpu.memory[gb->cpu.PC + 1]);
 }
 
-int main()
-{
-    GameBoy *gb = malloc(sizeof(GameBoy));
-
-    /* 
-    gb.cpu.memory[0x100] = 0xfa; // 
-    gb.cpu.memory[0x101] = 0x34;
-    gb.cpu.memory[0x102] = 0x12;
-    gb.cpu.memory[0x1234] = 0x56;
-    gb.cpu.memory[0x103] = 0x47;
-    gb.cpu.memory[0x104] = 0x3e;
-    gb.cpu.memory[0x105] = 0x99;
-    gb.cpu.memory[0x106] = 0xea;
-    gb.cpu.memory[0x107] = 0x78;
-    gb.cpu.memory[0x108] = 0x56;
- 
-    gb.cpu.memory[0x100] = 0x3E; // LD A, 0x05
-    gb.cpu.memory[0x101] = 0x05;
-
-    gb.cpu.memory[0x102] = 0xD6; // SUB 0x03
-    gb.cpu.memory[0x103] = 0x03;
-        
-    gb.cpu.memory[0x104] = 0xD6; // SUB 0x05 (should trigger borrow)
-    gb.cpu.memory[0x105] = 0x05;
-        
-    gb.cpu.memory[0x106] = 0xD6; // SUB 0xFD (wrap test)
-    gb.cpu.memory[0x107] = 0xFD;
-        
-    gb.cpu.memory[0x108] = 0x00; // NOP (end marker)*/
-
-    gb->cpu.PC = 0x100;
-
-    // load this into gb->cpu.memory starting at 0x100
-    gb->cpu.memory[0x100] = 0x3E; // LD A, 0x15
-    gb->cpu.memory[0x101] = 0x15;
-    
-    gb->cpu.memory[0x102] = 0x37; // SCF (set carry = 1)
-    gb->cpu.memory[0x103] = 0x00; // NOP placeholder (just increment PC)
-    
-    gb->cpu.memory[0x104] = 0xDE; // SBC 0x07
-    gb->cpu.memory[0x105] = 0x07;
-    
-    gb->cpu.memory[0x106] = 0xDE; // SBC 0x0F
-    gb->cpu.memory[0x107] = 0x0F;
-    
-    gb->cpu.memory[0x108] = 0xDE; // SBC 0x15
-    gb->cpu.memory[0x109] = 0x15;
-    
-    gb->cpu.memory[0x10A] = 0x00; // NOP / end
-                                 //
-                                 //
-    while(1)
-    {
-        print_cpu_state(gb);
-
-        char c = getchar();
-        if(c == 'q')
-            break;
-
-        clock(gb);
-    }
-    
-    //printf("memory[0x5678] = %x\n", gb.cpu.memory[0x5678]);
-
-    return 0;
-}
